@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define O_BINARY  0
 
@@ -16,34 +17,88 @@ int myCpy(int dest_file, char *data, int wrote);
 
 size_t getFileSize(const char *filename);
 
+int charArToInt(char *array);
+
 int main(int argc, char **argv) {
-    int buf_size = 1024;
-    char *src_file = argv[1];
-    char *dest_file = argv[2];
+    char *src_file;
+    char *dest_file;
+    bool cbc = false; // custom buffer checker
+    int buf_size = 4096; // buffer size: default to 4kB
+
+    switch (argc) {
+        case 0:
+        case 1:
+            perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+            exit(-1);
+            break;
+        case 2:
+            if (strcmp(argv[1], "-b") == 0) {
+                perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                exit(-2);
+            } else {
+                src_file = argv[1];
+                dest_file = "copiedFile";
+            }
+            break;
+        case 3:
+            if (strcmp(argv[1], "-b") == 0) {
+                perror("Arguments error.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                exit(-5);
+            } else {
+                src_file = argv[1];
+                dest_file = argv[2];
+            }
+            break;
+        case 4:
+            if (strcmp(argv[1], "-b") == 0) {
+                src_file = argv[3];
+                dest_file = "copiedFile";
+                cbc = true;
+            }else {
+                perror("Argument format Error:\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                exit(-6);
+            }
+            break;
+        case 5:
+            if (strcmp(argv[1], "-b") == 1) {
+                perror("Options error:\n/main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                exit(-3);
+            } else {
+                src_file = argv[3];
+                dest_file = argv[4];
+                cbc = true;
+            }
+            break;
+        default:
+            perror("error: ");
+            exit(-4);
+            break;
+    }
+
+    if (cbc) {
+        buf_size = charArToInt(argv[2]);
+    }
     char *c = calloc(buf_size, 8);
 
     int fd = open(src_file, O_RDONLY | O_BINARY);
     int ff = open(dest_file, O_WRONLY | O_CREAT | O_BINARY);
-    printf("%d", ff);
-
 
     int sm = access(dest_file, W_OK);
     if (sm < 0) {
         chmod(dest_file, W_OK);
     }
     sm = access(dest_file, W_OK);
-    printf("sm: %d", sm);
+    printf("write access to dest: %d", sm);
 
 
     if (fd < 0) {
-        printf("Something went wrong while reading the file: %s", src_file);
-        return -1;
+        perror("Something went wrong while reading the src file.");
+        exit(3);
     }
     if (ff < 0) {
-        printf("Something went wrong while reading the file: %s %d", dest_file, ff);
-        return -1;
+        perror("Something went wrong while reading the dest file.");
+        exit(4);
     }
-
 
     size_t file_size = getFileSize(src_file);
     printf("%zu", file_size);
@@ -53,11 +108,13 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < rep; ++i) {
         if (lseek(fd, wrote, SEEK_SET) < 0) {
-            printf("error: lseek");
+            perror("error: lseek");
+            exit(5);
         }
         int rc = read(fd, c, buf_size);
         if (rc < 0) {
-            printf("error: reading data");
+            perror("error: reading data");
+            exit(6);
         }
         //printf("%s", c);
         myCpy(ff, c, wrote);
@@ -66,22 +123,26 @@ int main(int argc, char **argv) {
     lseek(ff, 0L, SEEK_END);
     int wc = write(ff, "\0", 1);
     if (wc < 0) {
-        printf("error: writing data");
+        perror("error: writing data");
+        exit(7);
     }
     if (close(fd) < 0) {
-        printf("error: closing src file");
+        perror("error: closing src file");
+        exit(8);
     }
     if (close(ff) < 0) {
-        printf("error: closing dest file");
+        perror("error: closing dest file");
+        exit(9);
     }
-    //printf("\n\n");
+    printf("\n\n");
     return 0;
 }
 
 int myCpy(int dest_file, char *data, int wrote) {
-    lseek(dest_file, (long)wrote, SEEK_SET);
+    lseek(dest_file, (long) wrote, SEEK_SET);
     if (write(dest_file, data, strlen(data)) < 0) {
-        printf("error: write data");
+        perror("error: write data");
+        exit(10);
     }
 }
 
@@ -91,6 +152,10 @@ size_t getFileSize(const char *filename) {
         return 0;
     }
     return st.st_size;
+}
+
+int charArToInt(char *array){
+    return atoi(array);
 }
 
 #pragma clang diagnostic pop
