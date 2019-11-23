@@ -20,12 +20,12 @@ size_t getFileSize(const char *filename);
 int charArToInt(char *array);
 
 int main(int argc, char **argv) {
-    char *src_file;
-    char *dest_file;
+    char *src_file; // where to copy from
+    char *dest_file; // where to copy to
     bool cbc = false; // custom buffer checker
     int buf_size = 4096; // buffer size: default to 4kB
 
-    switch (argc) {
+    switch (argc) { // error check the given args
         case 0:
         case 1:
             perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
@@ -75,23 +75,23 @@ int main(int argc, char **argv) {
             break;
     }
 
-    if (cbc) {
+    if (cbc) { // if there is a custom buffer size set the new buffer size
         buf_size = charArToInt(argv[2]);
     }
-    char *c = calloc(buf_size, 8);
+    char *c = malloc(buf_size); // allocate the memory to read to and write from
 
-    int fd = open(src_file, O_RDONLY | O_BINARY);
-    int ff = open(dest_file, O_WRONLY | O_CREAT | O_BINARY);
+    int fd = open(src_file, O_RDONLY | O_BINARY); // open the source file
+    int ff = open(dest_file, O_WRONLY | O_CREAT | O_BINARY); // open the dest file
 
-    int sm = access(dest_file, W_OK);
+    int sm = access(dest_file, W_OK); // check for access granted
     if (sm < 0) {
-        chmod(dest_file, W_OK);
+        chmod(dest_file, W_OK); // chmod if no access
     }
     sm = access(dest_file, W_OK);
     printf("write access to dest: %d", sm);
 
 
-    if (fd < 0) {
+    if (fd < 0) { // check for some more errors
         perror("Something went wrong while reading the src file.");
         exit(3);
     }
@@ -100,33 +100,36 @@ int main(int argc, char **argv) {
         exit(4);
     }
 
-    size_t file_size = getFileSize(src_file);
-    printf("%zu", file_size);
+    size_t file_size = getFileSize(src_file); // get them file sizes
 
-    int wrote = 0;
-    double rep = (file_size) / (double) (buf_size);
+    int wrote = 0; // pointer for the lseek
+    double rep = (file_size) / (double) (buf_size); // how many times to repeat
 
-    for (int i = 0; i < rep; ++i) {
-        if (lseek(fd, wrote, SEEK_SET) < 0) {
+    for (int i = 0; i < rep; ++i) { // main copy loop
+        if (lseek(fd, wrote, SEEK_SET) < 0) { //check for seek error
             perror("error: lseek");
             exit(5);
         }
-        int rc = read(fd, c, buf_size);
-        if (rc < 0) {
+		if (i + 1 > rep ) { // for the last loop pass get a new string
+			char * cr = malloc((int)file_size - wrote);
+			int rc = read(fd, cr, buf_size);
+			printf("lastone");
+			if (rc < 0) {
+				perror("error: reading data");
+				exit(6);
+			}
+			myCpy(ff, cr, wrote); 
+			break;
+		}
+        int rc = read(fd, c, buf_size); // read from the file
+        if (rc < 0) { // if error
             perror("error: reading data");
             exit(6);
-        }
-        //printf("%s", c);
-        myCpy(ff, c, wrote);
-        wrote += buf_size;
+        } 
+        myCpy(ff, c, wrote); // copy
+        wrote += buf_size; // increase the value of seek pointer by buffer size
     }
-    lseek(ff, 0L, SEEK_END);
-    int wc = write(ff, "\0", 1);
-    if (wc < 0) {
-        perror("error: writing data");
-        exit(7);
-    }
-    if (close(fd) < 0) {
+    if (close(fd) < 0) {// close the files , and always check for errors
         perror("error: closing src file");
         exit(8);
     }
@@ -138,23 +141,23 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-int myCpy(int dest_file, char *data, int wrote) {
+int myCpy(int dest_file, char *data, int wrote) { // where to write to , what and at which point in the file
     lseek(dest_file, (long) wrote, SEEK_SET);
-    if (write(dest_file, data, strlen(data)) < 0) {
+    if (write(dest_file, data, strlen(data)) < 0) { // write and check for errors
         perror("error: write data");
         exit(10);
     }
 }
 
-size_t getFileSize(const char *filename) {
-    struct stat st;
-    if (stat(filename, &st) != 0) {
+size_t getFileSize(const char *filename) { // file name
+    struct stat st; 
+    if (stat(filename, &st) != 0) { // if empty terminate
         return 0;
     }
-    return st.st_size;
+    return st.st_size; // get that size
 }
 
-int charArToInt(char *array){
+int charArToInt(char *array){ // to_int function, for the terminal-passed buffer size argument
     return atoi(array);
 }
 
