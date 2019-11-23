@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+#include <sys/time.h>
 
 #define O_BINARY  0
 
@@ -28,12 +30,12 @@ int main(int argc, char **argv) {
     switch (argc) {
         case 0:
         case 1:
-            perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+            perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b <size> : sets a custom size buffer.");
             exit(-1);
             break;
         case 2:
             if (strcmp(argv[1], "-b") == 0) {
-                perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                perror("No arguments.\n./main <options> [src_file] [dest_file]\nOptions:\n-b <size> : sets a custom size buffer.");
                 exit(-2);
             } else {
                 src_file = argv[1];
@@ -42,7 +44,7 @@ int main(int argc, char **argv) {
             break;
         case 3:
             if (strcmp(argv[1], "-b") == 0) {
-                perror("Arguments error.\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                perror("Arguments error.\n./main <options> [src_file] [dest_file]\nOptions:\n-b <size> : sets a custom size buffer.");
                 exit(-5);
             } else {
                 src_file = argv[1];
@@ -54,14 +56,14 @@ int main(int argc, char **argv) {
                 src_file = argv[3];
                 dest_file = "copiedFile";
                 cbc = true;
-            }else {
-                perror("Argument format Error:\n./main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+            } else {
+                perror("Argument format Error:\n./main <options> [src_file] [dest_file]\nOptions:\n-b <size> : sets a custom size buffer.");
                 exit(-6);
             }
             break;
         case 5:
             if (strcmp(argv[1], "-b") == 1) {
-                perror("Options error:\n/main <options> [src_file] [dest_file]\nOptions:\n-b : sets a custom size buffer.");
+                perror("Options error:\n/main <options> [src_file] [dest_file]\nOptions:\n-b <size> : sets a custom size buffer.");
                 exit(-3);
             } else {
                 src_file = argv[3];
@@ -88,8 +90,6 @@ int main(int argc, char **argv) {
         chmod(dest_file, W_OK);
     }
     sm = access(dest_file, W_OK);
-    printf("write access to dest: %d", sm);
-
 
     if (fd < 0) {
         perror("Something went wrong while reading the src file.");
@@ -106,6 +106,9 @@ int main(int argc, char **argv) {
     int wrote = 0;
     double rep = (file_size) / (double) (buf_size);
 
+    struct timeval tval_before, tval_after, tval_result;
+    gettimeofday(&tval_before, NULL);
+
     for (int i = 0; i < rep; ++i) {
         if (lseek(fd, wrote, SEEK_SET) < 0) {
             perror("error: lseek");
@@ -116,7 +119,6 @@ int main(int argc, char **argv) {
             perror("error: reading data");
             exit(6);
         }
-        //printf("%s", c);
         myCpy(ff, c, wrote);
         wrote += buf_size;
     }
@@ -126,6 +128,14 @@ int main(int argc, char **argv) {
         perror("error: writing data");
         exit(7);
     }
+    // speed of copy operation
+    gettimeofday(&tval_after, NULL);
+    timersub(&tval_after, &tval_before, &tval_result);
+    //printf("Time elapsed: %ld.%06ld\n", (long int) tval_result.tv_sec, (long int) tval_result.tv_usec); //print the time of execution
+
+    double speed = ((double) file_size / (double) (tval_result.tv_usec / 1000)) * 1000;
+    printf("The speed of the buffer with size %d is %f B/s", buf_size, speed);
+
     if (close(fd) < 0) {
         perror("error: closing src file");
         exit(8);
@@ -134,6 +144,7 @@ int main(int argc, char **argv) {
         perror("error: closing dest file");
         exit(9);
     }
+
     printf("\n\n");
     return 0;
 }
@@ -154,7 +165,7 @@ size_t getFileSize(const char *filename) {
     return st.st_size;
 }
 
-int charArToInt(char *array){
+int charArToInt(char *array) {
     return atoi(array);
 }
 
