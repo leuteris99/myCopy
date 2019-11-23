@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
     int wrote = 0; // pointer for the lseek
     double rep = (file_size) / (double) (buf_size); // how many times to repeat
 
+	// starting the timer
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, NULL);
   
@@ -138,6 +139,7 @@ int main(int argc, char **argv) {
         perror("error: writing data");
         exit(7);
     }
+    // stop the timer
     // speed of copy operation
     gettimeofday(&tval_after, NULL);
     timersub(&tval_after, &tval_before, &tval_result);
